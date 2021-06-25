@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {    
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="testCanvas" width="800" height="800" style="display:block;">
+  Your browser does not support the HTML canvas tag.
+</canvas>
+
+<script src="./gravisim.js"></script>
+<script>
+/*
+ * Copyright (c) 2021, Tangent65536. All rights reserved.
+ */
+
+'use strict';
+
+const PI2 = Math.PI * 2;
+let gaussCache = NaN;
+function gaussian()
+{
+  let ret;
+  if(isNaN(gaussCache))
+  {
+    let cache = [0, Math.random()];
+    do
+    {
+      cache[0] = Math.random();
+    }
+    while(cache[0] < 9.094947017729282379150390625E-13);
+
+    cache[0] = Math.sqrt(-2 * Math.log(cache[0]));
+
+    ret = cache[0] * Math.cos(PI2 * cache[1]);
+    gaussCache = cache[0] * Math.sin(PI2 * cache[1]);
+  }
+  else
+  {
+    ret = gaussCache;
+    gaussCache = NaN;
+  }
+  return ret;
+}
+
+let cnv = document.getElementById("testCanvas");
+cnv.width = window.innerWidth;
+cnv.height = window.innerHeight;
+let ctx = cnv.getContext("2d");
+ctx.fillStyle = "rgba(0, 0, 0, 1)";
+ctx.fillRect(0, 0, cnv.width, cnv.height);
+
+let g = 1; // G, supposed to be 6.67E-11 but anyways lol.
+let dt = 1;
+let star1 = new MassObj(16, 0, 0, .25, 4, 2);
+let star2 = new MassObj(-32, 0, 0, -.5, 2, 4);
+let masscmb = star1.mass + star2.mass;
+let masses = [star1, star2];
+
+for(let i = 2 ; i < 1024 ; i++)
+{
+  let zet = gaussian();
+  let dist = zet * 32 + 256;
+  let speed = Math.sqrt(g * masscmb / dist) * (1 - 1.5625E-2 * gaussian());
+  let angl = Math.random() * 2 * Math.PI;
+
+  let planet = new MassObj(dist * Math.cos(angl), dist * Math.sin(angl), -speed * Math.sin(angl), speed * Math.cos(angl), 1 / 32 + Math.random() / 32, 1 / 4);
+
+  masses.push(planet);
+}
+
+let simu = new GravSimulator(masses, false, true, g, dt, 1 / 16);
+
+let i, x0, y0, filling = 3.125E-2, paused = false, planetEdge, planetFill;
+function drawMasses()
+{
+  if(paused)
+  {
+    return;
+  }
+
+  ctx.fillStyle = `rgba(0, 0, 0, ${filling})`;
+  ctx.fillRect(0, 0, cnv.width, cnv.height);
+  
+  simu.step();
+
+  masscmb = masses[0].mass + masses[1].mass;
+  x0 = (masses[0].x[0] * masses[0].mass + masses[1].x[0] * masses[1].mass) / masscmb;
+  y0 = (masses[0].y[0] * masses[0].mass + masses[1].y[0] * masses[1].mass) / masscmb;
+
+  i = 0;
+  masses[i].x[0] -= x0;
+  masses[i].y[0] -= y0;
+  ctx.beginPath();
+  ctx.arc(masses[i].getX() + cnv.width / 2, masses[i].getY() + cnv.height / 2, Math.max(masses[i].radi, 0.5), 0, 2 * Math.PI);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 1)';
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(127, 255, 255, 0.75)';
+  ctx.fill();
+
+  i = 1;
+  masses[i].x[0] -= x0;
+  masses[i].y[0] -= y0;
+  ctx.beginPath();
+  ctx.arc(masses[i].getX() + cnv.width / 2, masses[i].getY() + cnv.height / 2, Math.max(masses[i].radi, 0.5), 0, 2 * Math.PI);
+  ctx.strokeStyle = 'rgba(255, 255, 191, 1)';
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255, 255, 127, 0.75)';
+  ctx.fill();
+
+  for(i = 2 ; i < masses.length ; i++)
+  {
+    masses[i].x[0] -= x0;
+    masses[i].y[0] -= y0;
+    planetFill = Math.min(Math.floor(63 + masses[i].mass * 4096), 191);
+    planetEdge = Math.min(Math.floor(127 + masses[i].mass * 8192), 223);
+
+    ctx.beginPath();
+    ctx.arc(masses[i].getX() + cnv.width / 2, masses[i].getY() + cnv.height / 2, Math.max(masses[i].radi, 0.5), 0, 2 * Math.PI);
+    ctx.strokeStyle = `rgba(${planetFill}, ${planetFill}, ${planetFill}, 0.75)`;
+    ctx.stroke();
+    ctx.fillStyle = `rgba(${planetFill}, ${planetFill}, ${planetFill}, 0.75)`;
+    ctx.fill();
+  }
+  requestAnimationFrame(drawMasses);
+}
+
+function pause()
+{
+  paused = true;
+}
+
+function resume()
+{
+  paused = false;
+  drawMasses();
+}
+
+resume();
+
+document.addEventListener('contextMenu', function() {
+  if(filling === 1)
+  {
+    filling = 1.5625E-2;
+  }
+  else
+  {
+    filling = 1;
+  }
+}, false);
+
+window.addEventListener('resize', function() {
+  cnv.width = window.innerWidth;
+  cnv.height = window.innerHeight;
+  ctx.fillStyle = "rgba(0, 0, 0, 1)";
+  ctx.fillRect(0, 0, cnv.width, cnv.height);
+}, false);
+
+</script> 
+
+</body>
+</html>
