@@ -1,1 +1,1 @@
-# Newtonian-Gravity
+# 2D N-Body Newtonian Gravity in JavaScript
